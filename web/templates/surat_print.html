@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cetak Surat - {{.Surat.NomorSurat}}</title>
+    <script src="/static/js/tailwindcss.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime&display=swap');
+        @page {
+            size: legal;
+            margin: 1cm;
+        }
+        body {
+            font-family: 'Courier Prime', monospace;
+            background-color: #FFFFFF !important;
+            color: #000000 !important;
+        }
+        @media print {
+            body { -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body onload="window.print()">
+    <div class="max-w-3xl mx-auto text-black text-[14px] leading-relaxed select-none">
+        
+        <div class="flex mb-4">
+            <div class="text-center" style="width: 35%;">
+                <p class="font-bold">{{.Pengaturan.KopSurat1}}</p>
+                <p class="font-bold">{{.Pengaturan.KopSurat2}}</p>
+                <p class="font-bold">{{.Pengaturan.KopSurat3}}</p>
+                <div class="border-b-2 border-black mt-1"></div>
+            </div>
+        </div>
+
+        <div class="text-center">
+            {{if .Pengaturan.LogoPath}}
+                <img src="{{.Pengaturan.LogoPath}}" class="mx-auto mb-1" width="60" height="50">
+            {{end}}
+            <p class="font-bold underline text-[15px] mb-1">SURAT KETERANGAN HILANG</p>
+            <p>Nomor: {{.Surat.NomorSurat}}</p>
+        </div>
+
+        <p class="my-4 text-justify">
+            ---- Yang bertanda tangan dibawah ini a.n KEPALA KEPOLISIAN {{.Pengaturan.KopSurat3}}, menerangkan dengan benar bahwa: -----------------------------------------------------------------
+        </p>
+
+        <div class="mb-4 pl-6">
+            <div class="flex mb-1"><p class="w-36">Nama</p><p class="w-2">:</p><p class="flex-1 font-semibold">{{.Surat.PelaporNama | ToUpper}}</p></div>
+            <div class="flex mb-1"><p class="w-36">TTL</p><p class="w-2">:</p><p class="flex-1">{{.Surat.PelaporTTL}}</p></div>
+            <div class="flex mb-1"><p class="w-36">Agama</p><p class="w-2">:</p><p class="flex-1">{{.Surat.PelaporAgama}}</p></div>
+            <div class="flex mb-1"><p class="w-36">Jenis kelamin</p><p class="w-2">:</p><p class="flex-1">{{.Surat.PelaporKelamin}}</p></div>
+            <div class="flex mb-1"><p class="w-36">Pekerjaan</p><p class="w-2">:</p><p class="flex-1">{{.Surat.PelaporPekerjaan}}</p></div>
+            <div class="flex mb-1"><p class="w-36">Alamat</p><p class="w-2">:</p><p class="flex-1">{{.Surat.PelaporAlamat}}</p></div>
+        </div>
+
+        <p class="mb-4 text-justify">
+            Yang bersangkutan tersebut di atas benar telah datang di {{.Pengaturan.NamaKantor}} dan melaporkan bahwa telah kehilangan surat berharga berupa: ----------------------------------------
+        </p>
+        
+        <!-- PERBAIKAN LOGIKA TAMPILAN BARANG HILANG -->
+        <ul class="list-decimal list-inside pl-6 mb-4 space-y-1">
+            {{range .Surat.BarangHilang}}
+                {{$details := UnmarshalJson .Data}}
+                <li>
+                    <b>{{.JenisBarang}}</b>, 
+                    {{if eq .JenisBarang "KTP"}}
+                        NIK: {{$details.nik}}, a.n. Pelapor
+                    {{else if eq .JenisBarang "SIM"}}
+                        Jenis {{$details.jenis}} No: {{$details.nomor}}, a.n. Pelapor
+                    {{else if eq .JenisBarang "ATM"}}
+                        Bank {{$details.bank}}, No. Rek/Kartu: {{$details.nomor}}, a.n. Pelapor
+                    {{else if eq .JenisBarang "BPKB"}}
+                        Merek: {{$details.merek}}, No. Pol: {{$details.nopol}}, No. Rangka: {{$details.norangka}}, a.n. Pelapor
+                    {{else if eq .JenisBarang "STNK"}}
+                        Merek: {{$details.merek}}, No. Pol: {{$details.nopol}}, a.n. Pelapor
+                    {{else if eq .JenisBarang "Ijazah"}}
+                        Tingkat {{$details.tingkat}}, No. Seri: {{$details.noseri}}, a.n. Pelapor
+                    {{else if eq .JenisBarang "Paspor"}}
+                        No. Paspor: {{$details.nomor}}, a.n. Pelapor
+                    {{else if eq .JenisBarang "Lainnya"}}
+                        {{$details.deskripsi}}
+                    {{end}}
+                </li>
+            {{end}}
+        </ul>
+
+        <p class="mb-4 text-justify">
+            ---- Surat/kartu tersebut hilang di sekitar {{.Surat.LokasiHilang}}, dan sudah dilakukan pencarian namun sampai dikeluarkan Surat Keterangan ini belum ditemukan. -------------------------
+        </p>
+
+        <div class="flex justify-end mb-8">
+            <div class="text-center w-1/3">
+                <p>Yang Bermohon</p>
+                <p class="mt-12 font-semibold"><u>{{.Surat.PelaporNama | ToUpper}}</u></p>
+            </div>
+        </div>
+
+        <p class="mb-4 text-justify">
+            ---- Demikian Surat Keterangan ini dibuat dengan sebenar-benarnya dan dapat dipergunakan sebagaimana perlunya. --------------------------------------------------------------------
+        </p>
+        
+        <div class="italic mb-4">
+            <span class="block font-semibold">Tindakan Yang Diambil :</span>
+            <ol class="list-decimal list-inside space-y-1">
+                <li>Menerima laporan dan membuat Surat Keterangan Kehilangan barang guna seperlunya;</li>
+                <li>Surat keterangan kehilangan ini berlaku selama 15 (lima belas) hari, berlaku mulai tanggal dikeluarkan;</li>
+                <li>Surat Keterangan ini bukan sebagai pengganti surat yang hilang tetapi berguna untuk mengurus kembali surat yang hilang.</li>
+            </ol>
+        </div>
+
+        <div class="flex justify-end text-[13px] mb-2">
+             <div class="max-w-[45%] text-center">
+                <p>{{.Pengaturan.Wilayah}}, {{FormatTanggalIndo .Surat.TanggalSurat}}</p>
+             </div>
+        </div>
+
+        <div class="flex justify-between items-start text-[13px]">
+            <div class="text-center max-w-[45%]">
+                <p>a.n. KEPALA KEPOLISIAN {{.Pengaturan.KopSurat3 | ToUpper}}</p>
+                <p>{{.Pengaturan.PejabatDetails.Jabatan | ToUpper}}</p>
+                <div class="h-20"></div>
+                <p class="font-semibold underline">{{.Pengaturan.PejabatDetails.Nama | ToUpper}}</p>
+                <p>{{.Pengaturan.PejabatDetails.Pangkat}} NRP {{.Pengaturan.PejabatDetails.NRP}}</p>
+            </div>
+            <div class="text-center max-w-[45%]">
+                <p>Penerima Laporan</p>
+                <p>{{.Pengaturan.PenerimaDetails.Jabatan | ToUpper}}</p>
+                <div class="h-20"></div>
+                <p class="font-semibold underline">{{.Pengaturan.PenerimaDetails.Nama | ToUpper}}</p>
+                <p>{{.Pengaturan.PenerimaDetails.Pangkat}} NRP {{.Pengaturan.PenerimaDetails.NRP}}</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

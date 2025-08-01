@@ -1,0 +1,79 @@
+{{define "content"}}
+{{$isEdit := .ID}}
+<h1 class="h3 mb-4 text-gray-800">{{if $isEdit}}Edit Data Petugas{{else}}Tambah Petugas Baru{{end}}</h1>
+
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <form action="{{if $isEdit}}/petugas/edit/{{.ID}}{{else}}/petugas/baru{{end}}" method="POST">
+            <div class="form-group">
+                <label>Nama Lengkap</label>
+                <input type="text" class="form-control" name="nama" value="{{.Nama}}" required>
+            </div>
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label>Pangkat</label>
+                    <input type="text" class="form-control" name="pangkat" value="{{.Pangkat}}">
+                </div>
+                <div class="form-group col-md-6">
+                    <label>NRP</label>
+                    <input type="text" class="form-control" name="nrp" value="{{.NRP}}">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label>Tipe Petugas</label>
+                    <select id="tipePetugas" name="tipe" class="form-control" required>
+                        <option value="">-- Pilih Tipe --</option>
+                        <option value="Pejabat" {{if eq .Tipe "Pejabat"}}selected{{end}}>Pejabat (a.n. Kapolsek)</option>
+                        <option value="Penerima" {{if eq .Tipe "Penerima"}}selected{{end}}>Penerima Laporan</option>
+                    </select>
+                </div>
+                 <div class="form-group col-md-6">
+                    <label>Jabatan</label>
+                    <select id="jabatanPetugas" name="jabatan" class="form-control" required>
+                        </select>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">{{if $isEdit}}Update Data{{else}}Simpan Data{{end}}</button>
+            <a href="/petugas" class="btn btn-secondary">Batal</a>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tipeSelect = document.getElementById('tipePetugas');
+    const jabatanSelect = document.getElementById('jabatanPetugas');
+    const jabatanAwal = "{{.Jabatan}}"; // Simpan jabatan awal untuk mode edit
+
+    const jabatanOptions = {
+        'Pejabat': ['KA SPKT', 'SPKT I', 'SPKT II', 'SPKT III'],
+        'Penerima': ['ANGGOTA JAGA REGU I', 'ANGGOTA JAGA REGU II', 'ANGGOTA JAGA REGU III']
+    };
+
+    function updateJabatanOptions() {
+        const selectedTipe = tipeSelect.value;
+        jabatanSelect.innerHTML = '<option value="">-- Pilih Jabatan --</option>'; // Clear options
+
+        if (jabatanOptions[selectedTipe]) {
+            jabatanOptions[selectedTipe].forEach(function(jabatan) {
+                const option = document.createElement('option');
+                option.value = jabatan;
+                option.textContent = jabatan;
+                if (jabatan === jabatanAwal) {
+                    option.selected = true;
+                }
+                jabatanSelect.appendChild(option);
+            });
+        }
+    }
+
+    // Panggil saat halaman dimuat (untuk mode edit)
+    updateJabatanOptions();
+
+    // Panggil saat pilihan tipe berubah
+    tipeSelect.addEventListener('change', updateJabatanOptions);
+});
+</script>
+{{end}}

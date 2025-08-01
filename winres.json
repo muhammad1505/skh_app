@@ -1,0 +1,17 @@
+{
+  "FixedFileInfo": {
+    "FileVersion": [1, 0, 0, 0],
+    "ProductVersion": [1, 0, 0, 0]
+  },
+  "StringFileInfo": {
+    "Comments": "Aplikasi untuk manajemen surat kehilangan di Kepolisian.",
+    "CompanyName": "MYA Company",
+    "FileDescription": "Aplikasi Manajemen Surat Keterangan Hilang",
+    "FileVersion": "1.0.0.0",
+    "LegalCopyright": "Copyright © 2025 MYA Company",
+    "ProductName": "Aplikasi Surat Keterangan Hilang",
+    "ProductVersion": "1.0.0.0",
+    "OriginalFilename": "programmer.exe"
+  },
+  "IconPath": "icon.ico"
+}

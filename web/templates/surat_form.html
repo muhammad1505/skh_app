@@ -1,0 +1,164 @@
+{{define "content"}}
+{{$isEdit := .Surat}}
+<h1 class="h3 mb-4 text-gray-800">{{if $isEdit}}Edit Surat Keterangan Hilang{{else}}Buat Surat Baru{{end}}</h1>
+
+{{if .Error}}
+<div class="alert alert-danger">{{.Error}}</div>
+{{end}}
+
+<form id="suratForm" action="{{if $isEdit}}/surat/edit/{{.Surat.ID}}{{else}}/surat/baru{{end}}" method="POST">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Data Pelapor</h6></div>
+        <div class="card-body">
+            <div class="form-row">
+                <div class="form-group col-md-6"><label>Nama Lengkap</label><input type="text" class="form-control" name="pelapor_nama" value="{{if .Surat}}{{.Surat.PelaporNama}}{{end}}" required></div>
+                <div class="form-group col-md-3"><label>Tempat Lahir</label><input type="text" class="form-control" name="tempat_lahir" value="{{if .Surat}}{{(index (split .Surat.PelaporTTL ", ") 0)}}{{end}}" placeholder="Contoh: Morowali"></div>
+                <div class="form-group col-md-3"><label>Tanggal Lahir</label><input type="date" class="form-control" name="tanggal_lahir" value="{{if .Surat}}{{if gt (len (split .Surat.PelaporTTL ", ")) 1}}{{index (split .Surat.PelaporTTL ", ") 1}}{{end}}{{end}}"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group col-md-4"><label>Jenis Kelamin</label><select name="pelapor_kelamin" class="form-control"><option value="Laki-laki" {{if .Surat}}{{if eq .Surat.PelaporKelamin "Laki-laki"}}selected{{end}}{{end}}>Laki-laki</option><option value="Perempuan" {{if .Surat}}{{if eq .Surat.PelaporKelamin "Perempuan"}}selected{{end}}{{end}}>Perempuan</option></select></div>
+                <div class="form-group col-md-4"><label>Agama</label><select name="pelapor_agama" class="form-control">{{$agama := "Islam"}} {{if .Surat}}{{$agama = .Surat.PelaporAgama}}{{end}}<option value="Islam" {{if eq $agama "Islam"}}selected{{end}}>Islam</option><option value="Kristen Protestan" {{if eq $agama "Kristen Protestan"}}selected{{end}}>Kristen Protestan</option><option value="Katolik" {{if eq $agama "Katolik"}}selected{{end}}>Katolik</option><option value="Hindu" {{if eq $agama "Hindu"}}selected{{end}}>Hindu</option><option value="Buddha" {{if eq $agama "Buddha"}}selected{{end}}>Buddha</option><option value="Khonghucu" {{if eq $agama "Khonghucu"}}selected{{end}}>Khonghucu</option></select></div>
+                <div class="form-group col-md-4"><label>Pekerjaan</label><select name="pelapor_pekerjaan" class="form-control">{{$pekerjaan := "Lainnya"}} {{if .Surat}}{{$pekerjaan = .Surat.PelaporPekerjaan}}{{end}}<option value="Belum/Tidak Bekerja" {{if eq $pekerjaan "Belum/Tidak Bekerja"}}selected{{end}}>Belum/Tidak Bekerja</option><option value="Karyawan Honorer" {{if eq $pekerjaan "Karyawan Honorer"}}selected{{end}}>Karyawan Honorer</option><option value="Karyawan Swasta" {{if eq $pekerjaan "Karyawan Swasta"}}selected{{end}}>Karyawan Swasta</option><option value="Mengurus Rumah Tangga" {{if eq $pekerjaan "Mengurus Rumah Tangga"}}selected{{end}}>Mengurus Rumah Tangga</option><option value="Pegawai Negeri Sipil" {{if eq $pekerjaan "Pegawai Negeri Sipil"}}selected{{end}}>Pegawai Negeri Sipil</option><option value="Pelajar/Mahasiswa" {{if eq $pekerjaan "Pelajar/Mahasiswa"}}selected{{end}}>Pelajar/Mahasiswa</option><option value="TNI/POLRI" {{if eq $pekerjaan "TNI/POLRI"}}selected{{end}}>TNI/POLRI</option><option value="Wiraswasta" {{if eq $pekerjaan "Wiraswasta"}}selected{{end}}>Wiraswasta</option><option value="Lainnya" {{if eq $pekerjaan "Lainnya"}}selected{{end}}>Lainnya</option></select></div>
+            </div>
+            <div class="form-group"><label>Alamat</label><textarea class="form-control" name="pelapor_alamat" rows="2">{{if .Surat}}{{.Surat.PelaporAlamat}}{{end}}</textarea></div>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Data Kehilangan</h6>
+            <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#barangModal" id="btnTambahBarang"><i class="fas fa-plus"></i> Tambah Barang</button>
+        </div>
+        <div class="card-body">
+            <label>Daftar Barang yang Hilang</label>
+            <div class="table-responsive mb-3"><table class="table table-bordered"><thead><tr><th>Jenis Barang</th><th>Keterangan</th><th width="15%">Aksi</th></tr></thead><tbody id="barangTableBody"></tbody></table></div>
+            <div class="form-group"><label>Perkiraan Lokasi Hilang</label><input type="text" class="form-control" name="lokasi_hilang" value="{{if .Surat}}{{.Surat.LokasiHilang}}{{end}}" required></div>
+        </div>
+    </div>
+    
+    <div id="barangHiddenInputs"></div>
+    <button type="submit" class="btn btn-primary btn-lg">{{if $isEdit}}Update Surat{{else}}Buat dan Simpan Surat{{end}}</button>
+    <a href="/surat" class="btn btn-secondary btn-lg">Batal</a>
+</form>
+
+<div class="modal fade" id="barangModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="modalTitle">Tambah Barang Hilang</h5><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="editIndex">
+                <div class="form-group"><label>Jenis Barang</label><select id="jenisBarang" class="form-control"><option value="">-- Pilih Jenis --</option><option value="KTP">KTP</option><option value="SIM">SIM</option><option value="ATM">ATM</option><option value="BPKB">BPKB</option><option value="STNK">STNK</option><option value="Ijazah">Ijazah</option><option value="Paspor">Paspor</option><option value="Lainnya">Lainnya</option></select></div>
+                
+                <div id="formKTP" class="dynamic-form" style="display:none;"><div class="form-group"><label>NIK</label><input type="text" id="ktp_nik" class="form-control"></div></div>
+                <div id="formSIM" class="dynamic-form" style="display:none;"><div class="form-group"><label>Jenis SIM (Cth: A, C)</label><input type="text" id="sim_jenis" class="form-control"></div><div class="form-group"><label>No. SIM</label><input type="text" id="sim_nomor" class="form-control"></div></div>
+                <div id="formATM" class="dynamic-form" style="display:none;"><div class="form-group"><label>Nama Bank</label><input type="text" id="atm_bank" class="form-control"></div><div class="form-group"><label>No. Rekening/Kartu</label><input type="text" id="atm_nomor" class="form-control"></div></div>
+                <div id="formBPKB" class="dynamic-form" style="display:none;"><div class="form-group"><label>Merek / Tipe</label><input type="text" id="bpkb_merek" class="form-control"></div><div class="form-group"><label>No. Polisi</label><input type="text" id="bpkb_nopol" class="form-control"></div><div class="form-group"><label>No. Rangka</label><input type="text" id="bpkb_norangka" class="form-control"></div></div>
+                <div id="formSTNK" class="dynamic-form" style="display:none;"><div class="form-group"><label>Merek / Tipe</label><input type="text" id="stnk_merek" class="form-control"></div><div class="form-group"><label>No. Polisi</label><input type="text" id="stnk_nopol" class="form-control"></div></div>
+                <div id="formIjazah" class="dynamic-form" style="display:none;"><div class="form-group"><label>Tingkat</label><select id="ijazah_tingkat" class="form-control"><option value="SD">SD</option><option value="SMP">SMP</option><option value="SMA">SMA</option><option value="S1">S1</option><option value="S2">S2</option></select></div><div class="form-group"><label>No. Seri Ijazah</label><input type="text" id="ijazah_noseri" class="form-control"></div></div>
+                <div id="formPaspor" class="dynamic-form" style="display:none;"><div class="form-group"><label>No. Paspor</label><input type="text" id="paspor_nomor" class="form-control"></div></div>
+                <div id="formLainnya" class="dynamic-form" style="display:none;"><div class="form-group"><label>Deskripsi Lengkap</label><textarea id="lainnya_deskripsi" class="form-control" rows="3"></textarea></div></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button><button type="button" class="btn btn-primary" id="btnSimpanBarang">Simpan Barang</button></div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const barangAwal = {{if .Surat}}{{.Surat.BarangHilang | ToJson}}{{else}}[]{{end}};
+    let items = [];
+    if (barangAwal && barangAwal.length > 0) { items = barangAwal.map(b => ({ jenis_barang: b.JenisBarang, data: JSON.parse(b.Data) })); }
+    const form = document.getElementById('suratForm');
+    const tableBody = document.getElementById('barangTableBody');
+    const hiddenInputsContainer = document.getElementById('barangHiddenInputs');
+    const modal = $('#barangModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const jenisBarangSelect = document.getElementById('jenisBarang');
+    const editIndexInput = document.getElementById('editIndex');
+    const dynamicForms = {
+        'KTP':    { el: document.getElementById('formKTP'), fields: { nik: 'ktp_nik' } },
+        'SIM':    { el: document.getElementById('formSIM'), fields: { nomor: 'sim_nomor', jenis: 'sim_jenis' } },
+        'ATM':    { el: document.getElementById('formATM'), fields: { bank: 'atm_bank', nomor: 'atm_nomor' } },
+        'BPKB':   { el: document.getElementById('formBPKB'), fields: { merek: 'bpkb_merek', nopol: 'bpkb_nopol', norangka: 'bpkb_norangka' } },
+        'STNK':   { el: document.getElementById('formSTNK'), fields: { merek: 'stnk_merek', nopol: 'stnk_nopol' } },
+        'Ijazah': { el: document.getElementById('formIjazah'), fields: { tingkat: 'ijazah_tingkat', noseri: 'ijazah_noseri' } },
+        'Paspor': { el: document.getElementById('formPaspor'), fields: { nomor: 'paspor_nomor' } },
+        'Lainnya':{ el: document.getElementById('formLainnya'), fields: { deskripsi: 'lainnya_deskripsi' } }
+    };
+    function renderTable() {
+        tableBody.innerHTML = '';
+        items.forEach((item, index) => {
+            let keterangan = Object.values(item.data).join(', ');
+            const row = `<tr><td>${item.jenis_barang}</td><td>${keterangan}</td><td><button type="button" class="btn btn-warning btn-sm btn-edit" data-index="${index}"><i class="fas fa-edit"></i></button> <button type="button" class="btn btn-danger btn-sm btn-delete" data-index="${index}"><i class="fas fa-trash"></i></button></td></tr>`;
+            tableBody.innerHTML += row;
+        });
+    }
+    function prepareForSubmit() {
+        hiddenInputsContainer.innerHTML = '';
+        items.forEach(item => {
+            const jenisInput = document.createElement('input');
+            jenisInput.type = 'hidden';
+            jenisInput.name = 'barang_jenis[]';
+            jenisInput.value = item.jenis_barang;
+            hiddenInputsContainer.appendChild(jenisInput);
+            const dataInput = document.createElement('input');
+            dataInput.type = 'hidden';
+            dataInput.name = 'barang_data[]';
+            dataInput.value = JSON.stringify(item.data);
+            hiddenInputsContainer.appendChild(dataInput);
+        });
+    }
+    function resetModal() {
+        modalTitle.textContent = 'Tambah Barang Hilang';
+        editIndexInput.value = '';
+        jenisBarangSelect.value = '';
+        Object.values(dynamicForms).forEach(form => {
+            form.el.style.display = 'none';
+            Object.values(form.fields).forEach(fieldId => document.getElementById(fieldId).value = '');
+        });
+    }
+    document.getElementById('btnTambahBarang').addEventListener('click', resetModal);
+    jenisBarangSelect.addEventListener('change', function () {
+        Object.values(dynamicForms).forEach(form => form.el.style.display = 'none');
+        if (this.value && dynamicForms[this.value]) {
+            dynamicForms[this.value].el.style.display = 'block';
+        }
+    });
+    document.getElementById('btnSimpanBarang').addEventListener('click', function () {
+        const jenis = jenisBarangSelect.value;
+        if (!jenis) return;
+        const currentForm = dynamicForms[jenis];
+        const data = {};
+        for (const [key, fieldId] of Object.entries(currentForm.fields)) { data[key] = document.getElementById(fieldId).value; }
+        const newItem = { jenis_barang: jenis, data: data };
+        const editIndex = editIndexInput.value;
+        if (editIndex !== '') { items[editIndex] = newItem; } else { items.push(newItem); }
+        renderTable();
+        modal.modal('hide');
+    });
+    tableBody.addEventListener('click', function (e) {
+        const editButton = e.target.closest('.btn-edit');
+        if (editButton) {
+            const index = editButton.dataset.index;
+            const item = items[index];
+            resetModal();
+            modalTitle.textContent = 'Edit Barang Hilang';
+            editIndexInput.value = index;
+            jenisBarangSelect.value = item.jenis_barang;
+            jenisBarangSelect.dispatchEvent(new Event('change'));
+            const currentForm = dynamicForms[item.jenis_barang];
+            for (const [key, fieldId] of Object.entries(currentForm.fields)) { if (item.data[key]) { document.getElementById(fieldId).value = item.data[key]; } }
+            modal.modal('show');
+        }
+        const deleteButton = e.target.closest('.btn-delete');
+        if (deleteButton) {
+            const index = deleteButton.dataset.index;
+            items.splice(index, 1);
+            renderTable();
+        }
+    });
+    form.addEventListener('submit', prepareForSubmit);
+    renderTable();
+});
+</script>
+{{end}}

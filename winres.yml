@@ -1,0 +1,6 @@
+# winres.yml
+version: "1.0.0.0" 
+product: "Aplikasi Surat Keterangan Hilang"
+company: "MYA Company"
+legal: "Copyright © 2025 MYA Company"
+description: "Aplikasi Manajemen Surat Keterangan Hilang"
