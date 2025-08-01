@@ -1,0 +1,21 @@
+# Konfigurasi utama
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# Perintah untuk build aplikasi kita
+cmd = "go build -o ./tmp/main cmd/server/main.go"
+# File binary yang akan dijalankan
+bin = "tmp/main"
+# Perhatikan perubahan pada file-file ini
+include_ext = ["go", "html"]
+# Abaikan folder-folder ini
+exclude_dir = ["tmp", "migrations", "web/static"]
+
+[log]
+# Tampilkan waktu di log
+time = true
+
+[misc]
+# Beri jeda sedikit sebelum mematikan proses lama
+kill_delay = "500ms"
