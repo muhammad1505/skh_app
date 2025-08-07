@@ -8,12 +8,13 @@ import (
 	"path/filepath"
 	"skh_app/internal/handler"
 	"skh_app/internal/repository"
+	"skh_app/internal/service" // <-- Pastikan import ini ada
 	"skh_app/web"
-	"time" // <-- Tambahkan import ini
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/pkg/browser" // <-- Tambahkan import library browser
+	"github.com/pkg/browser"
 )
 
 func main() {
@@ -23,24 +24,23 @@ func main() {
 	}
 	defer db.Close()
 
+	// --- BAGIAN YANG DIUBAH ---
 	suratRepo := repository.NewSuratRepository(db)
-	h := handler.NewHandler(suratRepo)
+	suratService := service.NewSuratService(suratRepo) // Buat Service
+	h := handler.NewHandler(suratRepo, suratService)   // Suntikkan Repo & Service ke Handler
+	// --- AKHIR BAGIAN YANG DIUBAH ---
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	// Dapatkan path direktori saat ini
 	wd, err := os.Getwd()
 	if err != nil {
 		log.Fatalf("Gagal mendapatkan working directory: %v", err)
 	}
-	// Buat path absolut ke folder uploads
 	uploadsDir := http.Dir(filepath.Join(wd, "web", "static", "uploads"))
 
-	// Sajikan file dari folder uploads menggunakan path absolut
 	r.Handle("/static/uploads/*", http.StripPrefix("/static/uploads/", http.FileServer(uploadsDir)))
-	// Sajikan file lain dari embed FS
 	r.Handle("/static/*", http.FileServer(http.FS(web.Files)))
 
 	r.Get("/", h.Dashboard)
@@ -69,9 +69,6 @@ func main() {
 		r.Post("/", h.PengaturanUpdate)
 	})
 
-	// --- PERUBAHAN DIMULAI DI SINI ---
-
-	// 1. Jalankan server di goroutine (background)
 	go func() {
 		fmt.Println("Server berjalan di http://localhost:8080")
 		if err := http.ListenAndServe(":8080", r); err != nil {
@@ -79,8 +76,7 @@ func main() {
 		}
 	}()
 
-	// 2. Beri jeda sesaat agar server siap, lalu buka browser
-	time.Sleep(1 * time.Second) // Kasih napas 1 detik
+	time.Sleep(1 * time.Second)
 	fmt.Println("Membuka browser...")
 	err = browser.OpenURL("http://localhost:8080")
 	if err != nil {
@@ -88,7 +84,5 @@ func main() {
 		fmt.Println("Silakan buka http://localhost:8080 secara manual di browser Anda.")
 	}
 
-	// 3. Jaga agar aplikasi tidak langsung keluar
-	// select {} akan membuat main function menunggu selamanya
 	select {}
 }

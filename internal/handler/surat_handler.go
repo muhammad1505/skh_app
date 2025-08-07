@@ -83,36 +83,17 @@ func (h *Handler) SuratFormNew(w http.ResponseWriter, r *http.Request) {
 
 // SuratCreate memproses data dari form dan membuat surat baru
 func (h *Handler) SuratCreate(w http.ResponseWriter, r *http.Request) {
-	if err := h.Repo.ResetNomorCounterIfEmpty(); err != nil {
-		http.Error(w, "Gagal memeriksa dan mereset nomor surat", http.StatusInternalServerError)
-		return
-	}
-
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Gagal mem-parsing form", http.StatusBadRequest)
 		return
 	}
 
-	if r.FormValue("pelapor_nama") == "" || r.FormValue("lokasi_hilang") == "" {
-		data := model.PageData{
-			Error: "Nama Pelapor dan Lokasi Hilang wajib diisi.",
-		}
-		h.render(w, "surat_form.html", data)
-		return
-	}
-
+	// 1. Kumpulkan data dari form ke dalam struct model
 	tempatLahir := r.FormValue("tempat_lahir")
 	tanggalLahir := r.FormValue("tanggal_lahir")
 	ttl := fmt.Sprintf("%s, %s", tempatLahir, tanggalLahir)
 
-	loc, err := time.LoadLocation("Asia/Makassar")
-	if err != nil {
-		loc = time.Local
-	}
-	tanggalSurat := time.Now().In(loc)
-
-	surat := model.SuratKeteranganHilang{
-		TanggalSurat:     tanggalSurat,
+	surat := &model.SuratKeteranganHilang{
 		PelaporNama:      r.FormValue("pelapor_nama"),
 		PelaporTTL:       ttl,
 		PelaporAgama:     r.FormValue("pelapor_agama"),
@@ -126,38 +107,30 @@ func (h *Handler) SuratCreate(w http.ResponseWriter, r *http.Request) {
 	dataBarangList := r.Form["barang_data[]"]
 	for i, jenis := range jenisBarangList {
 		if jenis != "" && i < len(dataBarangList) {
-			barang := model.Barang{
+			surat.BarangHilang = append(surat.BarangHilang, model.Barang{
 				JenisBarang: jenis,
 				Data:        dataBarangList[i],
-			}
-			surat.BarangHilang = append(surat.BarangHilang, barang)
+			})
 		}
 	}
 
-	pengaturan, err := h.Repo.GetPengaturan()
+	// 2. Panggil Service untuk menjalankan SEMUA logika bisnis
+	createdSurat, err := h.Service.CreateNewSurat(surat)
 	if err != nil {
-		http.Error(w, "Gagal mengambil pengaturan saat membuat nomor surat", http.StatusInternalServerError)
+		// Jika ada error dari service, tampilkan di form agar pengguna bisa memperbaiki
+		data := model.PageData{
+			Surat: surat, // Kirim kembali data yang sudah diisi pengguna
+			Error: err.Error(),
+		}
+		w.WriteHeader(http.StatusBadRequest) // Set status code yang sesuai
+		h.render(w, "surat_form.html", data)
 		return
 	}
 
-	nomorBaru := 0
-	tahunSekarang := tanggalSurat.Year()
-	if tahunSekarang > pengaturan.LastNomorYear {
-		nomorBaru = 1
-	} else {
-		nomorBaru = pengaturan.LastNomorSurat + 1
-	}
-
-	nomorLengkap := service.GenerateNomorSurat(pengaturan.FormatNomorSurat, nomorBaru, surat.TanggalSurat)
-
-	suratID, err := h.Repo.CreateSurat(&surat, nomorBaru, nomorLengkap, tahunSekarang)
-	if err != nil {
-		http.Error(w, "Gagal menyimpan surat: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	http.Redirect(w, r, fmt.Sprintf("/surat?status=success_create&new_id=%d", suratID), http.StatusSeeOther)
+	// 3. Jika berhasil, redirect seperti biasa
+	http.Redirect(w, r, fmt.Sprintf("/surat?status=success_create&new_id=%d", createdSurat.ID), http.StatusSeeOther)
 }
+
 
 // SuratFormEdit menampilkan form yang sudah terisi data untuk diubah
 func (h *Handler) SuratFormEdit(w http.ResponseWriter, r *http.Request) {
