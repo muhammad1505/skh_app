@@ -5,6 +5,7 @@ import (
 	"skh_app/internal/model"
 	"strings"
 	"time"
+	"sync"
 )
 
 // SuratRepositoryInterface mendefinisikan fungsi-fungsi database yang dibutuhkan oleh service ini.
@@ -12,6 +13,12 @@ type SuratRepositoryInterface interface {
 	GetPengaturan() (*model.Pengaturan, error)
 	CreateSurat(surat *model.SuratKeteranganHilang, nomorBaru int, nomorSuratLengkap string, tahunSekarang int) (int64, error)
 	ResetNomorCounterIfEmpty() error
+
+	// --- TAMBAHKAN 4 METHOD DI BAWAH INI ---
+	GetTotalSurat() (int, error)
+	GetTotalSuratBulanIni() (int, error)
+	GetBarangHilangStats() ([]model.BarangStat, error)
+	GetSuratHarianStats() (map[string]int, error)
 }
 
 // SuratService adalah service layer yang berisi logika bisnis.
@@ -78,6 +85,78 @@ func (s *SuratService) CreateNewSurat(suratData *model.SuratKeteranganHilang) (*
 	return suratData, nil
 }
 
+// GetDashboardData mengambil semua data yang diperlukan untuk dashboard dan memprosesnya.
+func (s *SuratService) GetDashboardData() (*model.DashboardData, error) {
+	// 1. Panggil semua repository yang dibutuhkan.
+	// Kita bisa gunakan goroutine agar pemanggilan ke DB berjalan bersamaan untuk efisiensi.
+	var totalSurat, totalBulanIni int
+	var barangStats []model.BarangStat
+	var harianStats map[string]int
+	var errTotal, errBulan, errBarang, errHarian error
+	
+	var wg sync.WaitGroup
+	wg.Add(4)
+
+	go func() {
+		defer wg.Done()
+		totalSurat, errTotal = s.repo.GetTotalSurat()
+	}()
+	go func() {
+		defer wg.Done()
+		totalBulanIni, errBulan = s.repo.GetTotalSuratBulanIni()
+	}()
+	go func() {
+		defer wg.Done()
+		barangStats, errBarang = s.repo.GetBarangHilangStats()
+	}()
+	go func() {
+		defer wg.Done()
+		harianStats, errHarian = s.repo.GetSuratHarianStats()
+	}()
+
+	wg.Wait() // Tunggu semua panggilan ke database selesai
+
+	// Cek jika ada error dari salah satu panggilan
+	if errTotal != nil || errBulan != nil || errBarang != nil || errHarian != nil {
+		// Di sini Anda bisa mencatat error spesifiknya jika perlu
+		return nil, fmt.Errorf("gagal mengambil data statistik untuk dashboard")
+	}
+
+	// 2. Proses data statistik (ini adalah logika yang kita pindahkan dari handler)
+	var statLabels []string
+	var statData []int
+	for _, stat := range barangStats {
+		statLabels = append(statLabels, stat.JenisBarang)
+		statData = append(statData, stat.Total)
+	}
+
+	var harianLabels []string
+	var harianData []int
+	hariIni := time.Now().In(s.loc)
+	for i := 6; i >= 0; i-- {
+		hari := hariIni.AddDate(0, 0, -i)
+		tanggalStr := hari.Format("2006-01-02")
+		harianLabels = append(harianLabels, hari.Format("02 Jan"))
+
+		if total, ok := harianStats[tanggalStr]; ok {
+			harianData = append(harianData, total)
+		} else {
+			harianData = append(harianData, 0)
+		}
+	}
+
+	// 3. Kembalikan data dalam satu struct yang rapi dan siap pakai
+	dashboardData := &model.DashboardData{
+		TotalSurat:    totalSurat,
+		TotalBulanIni: totalBulanIni,
+		StatLabels:    statLabels,
+		StatData:      statData,
+		HarianLabels:  harianLabels,
+		HarianData:    harianData,
+	}
+
+	return dashboardData, nil
+}
 
 // --- Fungsi Helper (tetap sama) ---
 func generateNomorSurat(format string, nomor int, t time.Time) string {

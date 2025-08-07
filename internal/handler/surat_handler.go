@@ -15,47 +15,15 @@ import (
 )
 
 // Dashboard menampilkan halaman utama dengan statistik
-// Ganti fungsi Dashboard yang lama
 func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
-	total, _ := h.Repo.GetTotalSurat()
-	bulanIni, _ := h.Repo.GetTotalSuratBulanIni()
-	stats, _ := h.Repo.GetBarangHilangStats()
-	harianStats, _ := h.Repo.GetSuratHarianStats()
-
-	// Proses data kategori untuk Pie Chart
-	var statLabels []string
-	var statData []int
-	for _, s := range stats {
-		statLabels = append(statLabels, s.JenisBarang)
-		statData = append(statData, s.Total)
+	// Handler sekarang hanya memanggil satu fungsi dari service
+	data, err := h.Service.GetDashboardData()
+	if err != nil {
+		http.Error(w, "Gagal memuat data dashboard: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	// Proses data harian untuk Bar Chart
-	var harianLabels []string
-	var harianData []int
-	loc, _ := time.LoadLocation("Asia/Makassar")
-	hariIni := time.Now().In(loc)
-	for i := 6; i >= 0; i-- {
-		hari := hariIni.AddDate(0, 0, -i)
-		tanggalStr := hari.Format("2006-01-02")
-		harianLabels = append(harianLabels, hari.Format("02 Jan")) // Format label: "01 Agu"
-		
-		// Cek apakah ada data untuk tanggal ini, jika tidak, nilainya 0
-		if total, ok := harianStats[tanggalStr]; ok {
-			harianData = append(harianData, total)
-		} else {
-			harianData = append(harianData, 0)
-		}
-	}
-
-	data := model.DashboardData{
-		TotalSurat:       total,
-		TotalBulanIni:    bulanIni,
-		StatLabels:       statLabels,
-		StatData:         statData,
-		HarianLabels:     harianLabels,
-		HarianData:       harianData,
-	}
+	// Dan langsung merender data yang sudah jadi
 	h.render(w, "dashboard.html", data)
 }
 
@@ -261,18 +229,22 @@ func (h *Handler) PengaturanForm(w http.ResponseWriter, r *http.Request) {
 }
 
 // PengaturanUpdate menyimpan perubahan dari form pengaturan
-func (h *Handler) PengaturanUpdate(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		http.Error(w, "Gagal mem-parsing form", http.StatusBadRequest)
-		return
-	}
 
-	p, err := h.Repo.GetPengaturan()
+func (h *Handler) PengaturanUpdate(w http.ResponseWriter, r *http.Request) {
+	// 1. Ambil data pengaturan yang sudah ada dari database
+	p, err := h.Repo.GetPengaturan() // Boleh tetap panggil repo untuk get data awal
 	if err != nil {
 		http.Error(w, "Gagal mengambil pengaturan yang ada", http.StatusInternalServerError)
 		return
 	}
 
+	// 2. Parsing form (termasuk file)
+	if err := r.ParseMultipartForm(10 << 20); err != nil { // 10 MB max
+		http.Error(w, "Gagal mem-parsing form", http.StatusBadRequest)
+		return
+	}
+	
+	// 3. Kumpulkan data dari form ke struct
 	pejabatID, _ := strconv.Atoi(r.FormValue("pejabat_id"))
 	penerimaID, _ := strconv.Atoi(r.FormValue("penerima_id"))
 	lastNomor, _ := strconv.Atoi(r.FormValue("last_nomor_surat"))
@@ -287,37 +259,19 @@ func (h *Handler) PengaturanUpdate(w http.ResponseWriter, r *http.Request) {
 	p.PejabatID = pejabatID
 	p.PenerimaID = penerimaID
 
-	if p.LastNomorYear == 0 {
-		p.LastNomorYear = time.Now().Year()
-	}
-
+	// Ambil file dari form
 	file, handler, err := r.FormFile("logo")
-	if err == nil {
-		defer file.Close()
-		newFileName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), handler.Filename)
-		filePath := filepath.Join("web", "static", "uploads", newFileName)
-
-		dst, createErr := os.Create(filePath)
-		if createErr != nil {
-			http.Error(w, "Gagal membuat file di server", http.StatusInternalServerError)
-			return
-		}
-		defer dst.Close()
-
-		if _, copyErr := io.Copy(dst, file); copyErr != nil {
-			http.Error(w, "Gagal menyalin file", http.StatusInternalServerError)
-			return
-		}
-		p.LogoPath = "/static/uploads/" + newFileName
-	} else if err != http.ErrMissingFile {
+	if err != nil && err != http.ErrMissingFile {
 		http.Error(w, "Error saat upload file", http.StatusInternalServerError)
 		return
 	}
 
-	if err := h.Repo.UpdatePengaturan(p); err != nil {
-		http.Error(w, "Gagal menyimpan pengaturan", http.StatusInternalServerError)
+	// 4. Panggil Service untuk menjalankan SEMUA logika
+	if _, err := h.PengaturanService.UpdatePengaturan(p, file, handler); err != nil {
+		http.Error(w, "Gagal menyimpan pengaturan: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// 5. Jika berhasil, redirect
 	http.Redirect(w, r, "/pengaturan?status=success_update", http.StatusSeeOther)
 }

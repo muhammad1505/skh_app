@@ -24,11 +24,16 @@ func main() {
 	}
 	defer db.Close()
 
-	// --- BAGIAN YANG DIUBAH ---
+	// --- BAGIAN INISIALISASI FINAL ---
 	suratRepo := repository.NewSuratRepository(db)
-	suratService := service.NewSuratService(suratRepo) // Buat Service
-	h := handler.NewHandler(suratRepo, suratService)   // Suntikkan Repo & Service ke Handler
-	// --- AKHIR BAGIAN YANG DIUBAH ---
+	
+	// Inisialisasi kedua service dengan repository yang sama
+	suratService := service.NewSuratService(suratRepo)
+	pengaturanService := service.NewPengaturanService(suratRepo)
+
+	// Suntikkan semua dependensi ke Handler
+	h := handler.NewHandler(suratRepo, suratService, pengaturanService)
+	// --- AKHIR BAGIAN INISIALISASI FINAL ---
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
